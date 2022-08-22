@@ -44,7 +44,19 @@ class LeaderFollower:
         elif method == "custom":
             # TODO: Implementujte vlastni metodu pro vyckani na zacatek ulohy. 
             # - Tipy: Je mozne pouzit QR kod, zkusit poslat signal pres ROS  z jineho PC, nebo osadit robota tlacitkem (primo nebo pres arduino)
-            pass
+            start_flag = False
+            # dokud neni odmavnuto, robot ceka
+            while not start_flag:
+                if self.image is not None:
+                    img = self.image.copy()
+                    codes = decode(img)
+                    for code in codes:
+                        if code is not None:
+                            if code.data == 'start':
+                                # detekovan start, odmavnout
+                                start_flag = True
+                                break
+            
         else:
             rospy.logerror("Neznama metoda pro odstartovani ulohy")
 
@@ -65,7 +77,13 @@ class LeaderFollower:
         elif method == "custom":
             # TODO: Implementujte vlastni metodu pro detekci leadera. 
             # - Tipy: Je mozne pouzit QR kod, barvu, případně jiný na obraze založený přístup. Podoba Leadera se nesmí měnit.
-            pass
+            if self.image is not None:
+                img = self.image.copy()
+                codes = decode(img)
+                for code in codes:
+                    if code.data == 'stop':
+                        self.emergency_stop()
+        
         else:
             rospy.logerror("Neznama metoda pro detekci leadera")
 
@@ -106,7 +124,10 @@ class LeaderFollower:
             # TODO: Implementujte vlastni metodu, ktera parametry leadera prepocita na akcni zasahy pro jednotliva kola. 
             #       Ty ulozte do left_motor_msg a right_motor_msg. 
             # - Tipy: - Kazde kolo ma rozsah -100 az 100. Zaporne hodnoty jsou pro couvani. Zataceni dosahnete rozdilem hodnot na kolech.
-            pass
+            
+            left_motor_msg.data = 20
+            right_motor_msg.data = 20
+            
         self.left_motor_pub.publish(left_motor_msg)
         self.right_motor_pub.publish(right_motor_msg)
         pass
@@ -124,23 +145,33 @@ class LeaderFollower:
         # TODO: Implementujte metodu pro nouzove zastaveni
         # Tipy: Může byt pomocí tlacitka nebo pomocí QR kódu. Pokud bude implementováýno pomocí QR kódu tak doporučuji vnořit volání do 
         #       metody detect_leader jelikož tam už se QR kód zpracovává a tím pádem se ušetří výpočetní čas.
-        pass
+        
+        # zastav motory
+        left_motor_msg = Int32()
+        right_motor_msg = Int32()
+        left_motor_msg.data = 0
+        right_motor_msg.data = 0
+        self.left_motor_pub.publish(left_motor_msg)
+        self.right_motor_pub.publish(right_motor_msg)
+
+        # pockej na novy start
+        self.wait_for_start(method="custom")
 
     def run_task(self):
         # TODO: Pockat na signál od uzivatele 
-        self.wait_for_start(method="default")  # Po implementaci nastavte parametr na nazev vasi metody.
+        self.wait_for_start(method="custom")  # Po implementaci nastavte parametr na nazev vasi metody.
 
         # TODO: Iniciovat smycku resici ulohu
         while True:
-            detection = self.detect_leader(method="default")
+            detection = self.detect_leader(method="custom")
             # TODO: Zpracovat detekci z hlediska vzdalenosti a uhlu
             leader_parameters = self.compute_leader_parameters(detection, method="default")
             # TODO: Udaje pretavit do ovladani robota
-            self.compute_control_commands(leader_parameters, method="default")
+            self.compute_control_commands(leader_parameters, method="custom")
             # TODO: Rozpoznat konec a reagovat zastavenim a vypisem na display.
             self.stop_check(method="default")
             # TODO: Implementovat funkci na nouzove zastaveni.
-            self.emergency_stop()
+            # self.emergency_stop()
 
 
 if __name__ == "__main__":
