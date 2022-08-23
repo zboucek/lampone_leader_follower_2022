@@ -44,9 +44,8 @@ class LeaderFollower:
         elif method == "custom":
             # TODO: Implementujte vlastni metodu pro vyckani na zacatek ulohy. 
             # - Tipy: Je mozne pouzit QR kod, zkusit poslat signal pres ROS  z jineho PC, nebo osadit robota tlacitkem (primo nebo pres arduino)
-            start_flag = False
             # dokud neni odmavnuto, robot ceka
-            while not start_flag:
+            while True:
                 if self.image is not None:
                     img = self.image.copy()
                     codes = decode(img)
@@ -54,8 +53,7 @@ class LeaderFollower:
                         if code is not None:
                             if code.data == 'start':
                                 # detekovan start, odmavnout
-                                start_flag = True
-                                break
+                                return
             
         else:
             rospy.logerror("Neznama metoda pro odstartovani ulohy")
@@ -82,7 +80,14 @@ class LeaderFollower:
                 codes = decode(img)
                 for code in codes:
                     if code.data == 'stop':
+                        # zastav
                         self.emergency_stop()
+                        return None
+                    elif code.data == 'leader':
+                        # vidim leadera
+                        center = code.left-code.width/2-img.shape[1]/2
+                        detection = code.height, code.width, center
+                        return detection
         
         else:
             rospy.logerror("Neznama metoda pro detekci leadera")
@@ -99,7 +104,13 @@ class LeaderFollower:
             #             Na zaklade ziskanych dat vytvorte funkci, ktera prevede data z detekce na vzdalenost.
             #           - K presnejsimu vypoctu ridicich zasahu muze pomoci znalost rozdilu rychlosti (je nutne vytvorit promennou typu self. )
             #           - Uhel je mozne spocitat z pozice QR kodu ci jineho poznavaciho znameni v obrazu.
-            pass
+            par_dist_a = 1e2
+            par_dist_b = 1e2
+            distance = -par_dist_a*detection[0]/self.image.shape[0] + par_dist_b
+            rel_speed = None
+            angle = detection[2]/(self.image.shape[1]/2) #detection[0]/detection[1]
+            return distance, rel_speed, angle
+
         rospy.logwarn(leader_parameters)
         return leader_parameters
 
